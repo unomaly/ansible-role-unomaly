@@ -1,0 +1,76 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Install python for Ansible
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+      become: true
+      changed_when: false
+
+    - name: Install disk mgmt packages
+      become: true
+      apt:
+        update_cache: true
+        state: present
+        pkg: "{{ disk_mgmt_packages }}"
+      vars:
+        disk_mgmt_packages:
+          - parted
+          - lvm2
+
+    - name: Get partition info
+      become: true
+      register: sda_info
+      parted:
+        device: /dev/sda
+        unit: GiB
+
+    - name: Create partition
+      become: true
+      run_once: true
+      parted:
+        device: /dev/sda
+        number: 6
+        state: present
+        part_start: 10GiB
+        part_end: 100%
+        flags: [ lvm ]
+      when: sda_info.partitions|length < 4
+
+    - name: Create VG
+      become: true
+      lvg:
+        vg: unomaly
+        pvs: /dev/sda3
+        state: present
+      register: vg_create
+
+    - name: Create LV
+      become: true
+      lvol:
+        vg: unomaly
+        lv: unomaly-data
+        size: +100%PVS
+      when: vg_create.changed
+
+    - name: Create filesystem
+      become: true
+      filesystem:
+        fstype: ext4
+        dev: /dev/mapper/unomaly-unomaly--data
+
+    - name: Ensure DATA directory exists
+      become: true
+      file:
+        path: /DATA
+        state: directory
+        mode: 0755
+
+    - name: Mount DATA directory
+      become: true
+      mount:
+        state: present
+        path: /DATA
+        src: /dev/mapper/unomaly-unomaly--data
+        fstype: ext4

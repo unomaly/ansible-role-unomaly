@@ -1,0 +1,6 @@
+---
+- name: Restart licensed
+  systemd:
+    no_block: no # not required. Do not synchronously wait for the requested operation to finish. Enqueued job will continue without Ansible blocking on its completion.
+    name: licensed
+    state: restarted

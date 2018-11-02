@@ -1,0 +1,10 @@
+---
+- name: Reboot after kernel upgrade
+  reboot:
+
+- name: Wait for reboot to complete
+  wait_for_connection:
+    connect_timeout: 30
+    sleep: 5
+    delay: 5
+    timeout: 300

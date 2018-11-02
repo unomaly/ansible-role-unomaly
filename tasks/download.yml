@@ -1,0 +1,10 @@
+---
+- name: Download Unomaly MD5 Sum
+  get_url:
+    url: "{{ unomaly_base_download_url }}/unomaly-{{ unomaly_version }}.run.md5"
+    dest: "/tmp/unomaly-{{ unomaly_version }}.run.md5"
+
+- name: Download Unomaly
+  get_url:
+    url: "{{ unomaly_base_download_url }}/unomaly-{{ unomaly_version }}.run"
+    dest: "/tmp/unomaly-{{ unomaly_version }}.run"

@@ -1,0 +1,52 @@
+---
+- name: Upgrade kernel
+  when: ansible_kernel is version_compare(unomaly_min_kernel_version, "<")
+  apt:
+    state: present
+    pkg: linux-image-4.9.0-0.bpo.8-amd64
+    update_cache: true
+  register: kernel_upgraded
+
+- include: reboot.yml
+  when: ansible_kernel is version_compare(unomaly_min_kernel_version, "<") or
+        kernel_upgraded.changed
+
+- name: Check if version file exists
+  stat:
+    path: /opt/unomaly/VERSION
+  register: unomaly_version_file
+
+- name: Get Unomaly version
+  shell: grep {{ unomaly_version }} /opt/unomaly/VERSION
+  ignore_errors: true
+  changed_when: False
+  register: unomaly_version_from_file
+  when: unomaly_version_file.stat.exists
+
+# - debug: msg="{{ unomaly_version_from_file }}"
+
+- include: download.yml
+  when: not unomaly_version_file.stat.exists
+        or unomaly_version_from_file.failed
+
+- name: Run installer
+  command: sh /tmp/unomaly-{{ unomaly_version }}.run
+  when: not unomaly_version_file.stat.exists
+
+- name: Run upgrade
+  command: unomaly-upgrade --version {{ unomaly_version }} --install
+  when: unomaly_version_file.stat.exists
+        and unomaly_version_from_file.failed
+
+- name: Wait for install to complete
+  wait_for:
+    port: 6007
+    state: started
+    timeout: 3600
+
+- name: Apply license
+  copy:
+    content: "{{ unomaly_license_string }}"
+    dest: "{{ unomaly_license_file_path }}/license.jwt"
+  notify:
+    - Restart licensed
