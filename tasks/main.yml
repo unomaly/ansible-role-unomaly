@@ -39,10 +39,11 @@
         and unomaly_version_from_file.failed
 
 - name: Wait for install to complete
-  wait_for:
-    port: 6007
-    state: started
-    timeout: 3600
+  shell: curl --head --silent http://localhost/
+  register: curl_result
+  until: curl_result.stdout.find("302 Found") != -1
+  retries: 60
+  delay: 5
 
 - name: Apply license
   copy:
